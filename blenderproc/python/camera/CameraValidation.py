@@ -71,9 +71,9 @@ def perform_obstacle_in_view_check(cam2world_matrix: Union[Matrix, np.ndarray], 
             range_distance = proximity_checks["min"]
 
     no_range_distance = False
-    if "no_background" in proximity_checks and proximity_checks["no_background"]:
-        # when no background is on, it can not be combined with a reduced range distance
-        no_range_distance = True
+    # if "no_background" in proximity_checks and proximity_checks["no_background"]:
+    #     # when no background is on, it can not be combined with a reduced range distance
+    #     no_range_distance = True
 
     # Go in discrete grid-like steps over plane
     position = cam2world_matrix.to_translation()
@@ -99,8 +99,8 @@ def perform_obstacle_in_view_check(cam2world_matrix: Union[Matrix, np.ndarray], 
                     if not "avg" in proximity_checks:
                         sum_value += dist
                     sum_sq += dist * dist
-            elif "no_background" in proximity_checks and proximity_checks["no_background"]:
-                return False
+            # elif "no_background" in proximity_checks and proximity_checks["no_background"]:
+            #     return False
 
     if "avg" in proximity_checks:
         avg = sum_value / (sqrt_number_of_rays * sqrt_number_of_rays)
@@ -123,7 +123,7 @@ def perform_obstacle_in_view_check(cam2world_matrix: Union[Matrix, np.ndarray], 
     return True
 
 
-def visible_objects(cam2world_matrix: Union[Matrix, np.ndarray], sqrt_number_of_rays: int = 10) -> Set[MeshObject]:
+def visible_objects(cam2world_matrix: Union[Matrix, np.ndarray], sqrt_number_of_rays: int = 10, special_objects: list = None) -> List[MeshObject]:
     """ Returns a set of objects visible from the given camera pose.
 
     Sends a grid of rays through the camera frame and returns all objects hit by at least one ray.
@@ -135,7 +135,7 @@ def visible_objects(cam2world_matrix: Union[Matrix, np.ndarray], sqrt_number_of_
     """
     cam2world_matrix = Matrix(cam2world_matrix)
 
-    visible_objects_set = set()
+    visible_objects_set = list()
     cam_ob = bpy.context.scene.camera
     cam = cam_ob.data
 
@@ -154,13 +154,26 @@ def visible_objects(cam2world_matrix: Union[Matrix, np.ndarray], sqrt_number_of_
         for y in range(0, sqrt_number_of_rays):
             # Compute current point on plane
             end = frame[0] + vec_x * x / float(sqrt_number_of_rays - 1) + vec_y * y / float(sqrt_number_of_rays - 1)
-            # Send ray from the camera position through the current point on the plane
-            _, _, _, _, hit_object, _ = bpy.context.scene.ray_cast(bpy.context.evaluated_depsgraph_get(),
-                                                                   position, end - position)
-            # Add hit object to set
-            if hit_object:
-                visible_objects_set.add(MeshObject(hit_object))
+            hit, _, _, _, hit_object, _ = bpy.context.scene.ray_cast(bpy.context.evaluated_depsgraph_get(),
+                                                                     position, end - position)
 
+            if hit:
+                is_of_special_dataset = "is_suncg" in hit_object or "is_3d_front" in hit_object
+                is_suncg_object = "suncg_type" in hit_object and hit_object["suncg_type"] == "Object"
+                is_front_3d_object = "3D_future_type" in hit_object and hit_object["3D_future_type"] == "Object"
+                if is_of_special_dataset and is_suncg_object or is_of_special_dataset and is_front_3d_object:
+                    # calculate the score based on the type of the object,
+                    # wall, floor and ceiling objects have 0 score
+                    if "coarse_grained_class" in hit_object:
+                        object_class = hit_object["coarse_grained_class"]
+                        if object_class not in special_objects:
+                            #visible_objects_set.append(hit_object)
+                            visible_objects_set.append(MeshObject(hit_object))
+                elif "category_id" in hit_object:
+                    object_class = hit_object["category_id"]
+                    if object_class not in special_objects:
+                        #visible_objects_set.append(hit_object)
+                        visible_objects_set.append(MeshObject(hit_object))
     return visible_objects_set
 
 

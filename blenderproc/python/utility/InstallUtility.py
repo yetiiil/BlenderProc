@@ -43,7 +43,7 @@ class InstallUtility:
         # If no blender install path is given set it to /home_local/<env:USER>/blender/ per default
         if blender_install_path is None:
             user_name = getpass.getuser()
-            blender_install_path = os.path.join("/home_local", user_name, "blender")
+            blender_install_path = os.path.join("/scratch2", user_name, "blender")
         return custom_blender_path, blender_install_path
 
     @staticmethod

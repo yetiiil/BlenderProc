@@ -1,12 +1,14 @@
+import blenderproc as bproc
 """ Download cc textures from ambientCG.com """
 
+from blenderproc.python.utility.SetupUtility import SetupUtility
 import shutil
 import argparse
 from pathlib import Path
 
 import requests
 
-from blenderproc.python.utility.SetupUtility import SetupUtility
+
 
 
 def cli():
@@ -95,6 +97,7 @@ def cli():
             print(f"Download asset: {asset} of {index}/{len(data)}")
             response = requests.get(link, headers=headers, timeout=30)
             SetupUtility.extract_from_response(current_folder, response)
+
 
     print(f"Done downloading textures, saved in {cc_texture_dir}")
 

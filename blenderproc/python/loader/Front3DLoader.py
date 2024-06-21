@@ -18,9 +18,22 @@ from blenderproc.python.utility.Utility import resolve_path
 from blenderproc.python.loader.ObjectLoader import load_obj
 from blenderproc.python.loader.TextureLoader import load_texture
 
+def add_spotlight(light_obj, strength):
+    # Create a new lamp data block
+    lamp_data = bpy.data.lights.new(name="SpotLamp", type='SPOT')
+    lamp_data.energy = strength
+    lamp_data.color = (1.0, 1.0, 1.0)  # White light; adjust as needed
+    lamp_data.spot_size = 0.5  # Adjust spot size as needed
+
+    # Create a new object with the lamp data
+    lamp_object = bpy.data.objects.new(name="SpotLamp", object_data=lamp_data)
+    bpy.context.collection.objects.link(lamp_object)
+
+    # Copy the position and rotation of the light object
+    lamp_object.location = light_obj.blender_obj.location
 
 def load_front3d(json_path: str, future_model_path: str, front_3D_texture_path: str, label_mapping: LabelIdMapping,
-                 ceiling_light_strength: float = 0.8, lamp_light_strength: float = 7.0) -> List[MeshObject]:
+                 ceiling_light_strength: float , lamp_light_strength: float ) -> List[MeshObject]:
     """ Loads the 3D-Front scene specified by the given json file.
 
     :param json_path: Path to the json file, where the house information is stored.
@@ -63,6 +76,88 @@ def load_front3d(json_path: str, future_model_path: str, front_3D_texture_path: 
 
     return created_objects
 
+def load_small_front3d(json_path: str, future_model_path: str, front_3D_texture_path: str, label_mapping: LabelIdMapping,
+                 ceiling_light_strength: float , lamp_light_strength: float ) -> List[MeshObject]:
+    """ Loads the 3D-Front scene specified by the given json file.
+
+    :param json_path: Path to the json file, where the house information is stored.
+    :param future_model_path: Path to the models used in the 3D-Front dataset.
+    :param front_3D_texture_path: Path to the 3D-FRONT-texture folder.
+    :param label_mapping: A dict which maps the names of the objects to ids.
+    :param ceiling_light_strength: Strength of the emission shader used in the ceiling.
+    :param lamp_light_strength: Strength of the emission shader used in each lamp.
+    :return: The list of loaded mesh objects.
+    """
+    json_path = resolve_path(json_path)
+    future_model_path = resolve_path(future_model_path)
+    front_3D_texture_path = resolve_path(front_3D_texture_path)
+
+    if not os.path.exists(json_path):
+        raise FileNotFoundError(f"The given path does not exists: {json_path}")
+    if not json_path.endswith(".json"):
+        raise FileNotFoundError(f"The given path does not point to a .json file: {json_path}")
+    if not os.path.exists(future_model_path):
+        raise FileNotFoundError(f"The 3D future model path does not exist: {future_model_path}")
+
+    # load data from json file
+    with open(json_path, "r", encoding="utf-8") as json_file:
+        data = json.load(json_file)
+
+    if "scene" not in data:
+        raise ValueError(f"There is no scene data in this json file: {json_path}")
+
+    created_objects = _Front3DLoader.create_mesh_objects_from_file(data, front_3D_texture_path,
+                                                                   ceiling_light_strength, label_mapping, json_path)
+
+    all_loaded_furniture = _Front3DLoader.load_small_furniture_objs(data, future_model_path,
+                                                              lamp_light_strength, label_mapping)
+
+    created_objects += _Front3DLoader.move_and_duplicate_furniture(data, all_loaded_furniture)
+
+    # add an identifier to the obj
+    for obj in created_objects:
+        obj.set_cp("is_3d_front", True)
+
+    return created_objects
+
+def load_front3d_no_furniture(json_path: str, future_model_path: str, front_3D_texture_path: str, label_mapping: LabelIdMapping,
+                 ceiling_light_strength: float , lamp_light_strength: float ) -> List[MeshObject]:
+    """ Loads the 3D-Front scene specified by the given json file.
+
+    :param json_path: Path to the json file, where the house information is stored.
+    :param future_model_path: Path to the models used in the 3D-Front dataset.
+    :param front_3D_texture_path: Path to the 3D-FRONT-texture folder.
+    :param label_mapping: A dict which maps the names of the objects to ids.
+    :param ceiling_light_strength: Strength of the emission shader used in the ceiling.
+    :param lamp_light_strength: Strength of the emission shader used in each lamp.
+    :return: The list of loaded mesh objects.
+    """
+    json_path = resolve_path(json_path)
+    future_model_path = resolve_path(future_model_path)
+    front_3D_texture_path = resolve_path(front_3D_texture_path)
+
+    if not os.path.exists(json_path):
+        raise FileNotFoundError(f"The given path does not exists: {json_path}")
+    if not json_path.endswith(".json"):
+        raise FileNotFoundError(f"The given path does not point to a .json file: {json_path}")
+    if not os.path.exists(future_model_path):
+        raise FileNotFoundError(f"The 3D future model path does not exist: {future_model_path}")
+
+    # load data from json file
+    with open(json_path, "r", encoding="utf-8") as json_file:
+        data = json.load(json_file)
+
+    if "scene" not in data:
+        raise ValueError(f"There is no scene data in this json file: {json_path}")
+
+    created_objects = _Front3DLoader.create_mesh_objects_from_file(data, front_3D_texture_path,
+                                                                   ceiling_light_strength, label_mapping, json_path)
+
+    # add an identifier to the obj
+    for obj in created_objects:
+        obj.set_cp("is_3d_front", True)
+
+    return created_objects
 
 class _Front3DLoader:
     """ Loads the 3D-Front dataset.
@@ -196,6 +291,12 @@ class _Front3DLoader:
                         mat.set_principled_shader_value("Base Color", used_image)
 
                         if "ceiling" in used_obj_name.lower():
+                            # Reshape the flat list into an array of points
+                            points = np.array(mesh_data["xyz"]).reshape(-1, 3)
+                            # Calculate the distances between each pair of points
+                            distances = np.linalg.norm(points[:, np.newaxis] - points, axis=-1)
+                            # Find the maximum distance
+                            max_distance = np.max(distances)
                             mat.make_emissive(ceiling_light_strength,
                                               emission_color=mathutils.Vector(used_mat["color"]) / 255.0)
 
@@ -231,6 +332,7 @@ class _Front3DLoader:
                         if "ceiling" in used_obj_name.lower():
                             mat.make_emissive(ceiling_light_strength,
                                               emission_color=mathutils.Vector(used_mat["color"]) / 255.0)
+                    
                         else:
                             used_materials_based_on_color[used_hash] = mat
 
@@ -303,6 +405,102 @@ class _Front3DLoader:
         return created_objects
 
     @staticmethod
+    def load_small_furniture_objs(data: dict, future_model_path: str, lamp_light_strength: float,
+                            label_mapping: LabelIdMapping) -> List[MeshObject]:
+        """
+        Load all furniture objects specified in the json file, these objects are stored as "raw_model.obj" in the
+        3D_future_model_path. For lamp the lamp_light_strength value can be changed via the config.
+
+        :param data: json data dir. Should contain "furniture"
+        :param future_model_path: Path to the models used in the 3D-Front dataset.
+        :param lamp_light_strength: Strength of the emission shader used in each lamp.
+        :param label_mapping: A dict which maps the names of the objects to ids.
+        :return: The list of loaded mesh objects.
+        """
+        # collect all loaded furniture objects
+        all_objs = []
+        # for each furniture element
+        for ele in data["furniture"]:
+            if (("category" in ele) and (not any(char in ele["category"] for char in ["sofa", "bed", "table", "Sofa", "Bed", "Table"]))) or (("title" in ele) and (not any(char in ele["title"] for char in ["sofa", "bed", "table", "Sofa", "Bed", "Table"]))):
+                # if any(char in ele["category"] for char in ["sofa", "bed", "table", "Sofa", "Bed", "Table"])):
+                # create the paths based on the "jid"
+                folder_path = os.path.join(future_model_path, ele["jid"])
+                obj_file = os.path.join(folder_path, "raw_model.obj")
+                # if the object exists load it -> a lot of object do not exist
+                # we are unsure why this is -> we assume that not all objects have been made public
+                if os.path.exists(obj_file) and not "7e101ef3-7722-4af8-90d5-7c562834fabd" in obj_file:
+                    # load all objects from this .obj file
+                    objs = load_obj(filepath=obj_file)
+                    # extract the name, which serves as category id
+                    used_obj_name = ""
+                    if "category" in ele:
+                        used_obj_name = ele["category"]
+                    elif "title" in ele:
+                        used_obj_name = ele["title"]
+                        if "/" in used_obj_name:
+                            used_obj_name = used_obj_name.split("/")[0]
+                    if used_obj_name == "":
+                        used_obj_name = "others"
+                    for obj in objs:
+                        obj.set_name(used_obj_name)
+                        # add some custom properties
+                        obj.set_cp("uid", ele["uid"])
+                        # this custom property determines if the object was used before
+                        # is needed to only clone the second appearance of this object
+                        obj.set_cp("is_used", False)
+                        obj.set_cp("is_3D_future", True)
+                        obj.set_cp("3D_future_type", "Non-Object")  # is an non object used for the interesting score
+                        # set the category id based on the used obj name
+                        obj.set_cp("category_id", label_mapping.id_from_label(used_obj_name.lower()))
+                        # walk over all materials
+                        for mat in obj.get_materials():
+                            if mat is None:
+                                continue
+                            principled_node = mat.get_nodes_with_type("BsdfPrincipled")
+                            if "bed" in used_obj_name.lower() or "sofa" in used_obj_name.lower():
+                                if len(principled_node) == 1:
+                                    principled_node[0].inputs["Roughness"].default_value = 0.5
+                            is_lamp = "lamp" in used_obj_name.lower()
+                            is_light = "light" in used_obj_name.lower()
+                            if len(principled_node) == 0 and is_lamp:
+                                # this material has already been transformed
+                                continue
+                            if len(principled_node) == 1:
+                                principled_node = principled_node[0]
+                            else:
+                                raise ValueError(f"The amount of principle nodes can not be more than 1, "
+                                                f"for obj: {obj.get_name()}!")
+
+                            # Front3d .mtl files contain emission color which make the object mistakenly emissive
+                            # => Reset the emission color
+                            principled_node.inputs["Emission"].default_value[:3] = [0, 0, 0]
+
+                            # Front3d .mtl files use Tf incorrectly, they make all materials fully transmissive
+                            # Revert that:
+                            principled_node.inputs["Transmission"].default_value = 0
+
+                            # For each a texture node
+                            image_node = mat.new_node('ShaderNodeTexImage')
+                            # and load the texture.png
+                            base_image_path = os.path.join(folder_path, "texture.png")
+                            image_node.image = bpy.data.images.load(base_image_path, check_existing=True)
+                            mat.link(image_node.outputs['Color'], principled_node.inputs['Base Color'])
+                            # if the object is a lamp, do the same as for the ceiling and add an emission shader
+                            if is_light or is_lamp:
+                                mat.make_emissive(lamp_light_strength)
+                                # light_data = bpy.data.lights.new(name="Lamp"+str(used_obj_name), type='POINT')
+                                # light_data.color = [1.0, 1.0, 1.0] 
+                                # light_data.energy = lamp_light_strength 
+                                # light_object = bpy.data.objects.new(name="Lamp"+str(used_obj_name), object_data=light_data)
+                                # bpy.context.collection.objects.link(light_object)
+                                # light_object.parent = obj.blender_obj
+
+                    all_objs.extend(objs)
+                elif "7e101ef3-7722-4af8-90d5-7c562834fabd" in obj_file:
+                    warnings.warn(f"This file {obj_file} was skipped as it can not be read by blender.")
+        return all_objs
+    
+    @staticmethod
     def load_furniture_objs(data: dict, future_model_path: str, lamp_light_strength: float,
                             label_mapping: LabelIdMapping) -> List[MeshObject]:
         """
@@ -357,6 +555,7 @@ class _Front3DLoader:
                             if len(principled_node) == 1:
                                 principled_node[0].inputs["Roughness"].default_value = 0.5
                         is_lamp = "lamp" in used_obj_name.lower()
+                        is_light = "light" in used_obj_name.lower()
                         if len(principled_node) == 0 and is_lamp:
                             # this material has already been transformed
                             continue
@@ -381,8 +580,15 @@ class _Front3DLoader:
                         image_node.image = bpy.data.images.load(base_image_path, check_existing=True)
                         mat.link(image_node.outputs['Color'], principled_node.inputs['Base Color'])
                         # if the object is a lamp, do the same as for the ceiling and add an emission shader
-                        if is_lamp:
+                        if is_light or is_lamp:
                             mat.make_emissive(lamp_light_strength)
+                            # light_data = bpy.data.lights.new(name="Lamp"+str(used_obj_name), type='POINT')
+                            # light_data.color = [1.0, 1.0, 1.0] 
+                            # light_data.energy = lamp_light_strength 
+                            # light_object = bpy.data.objects.new(name="Lamp"+str(used_obj_name), object_data=light_data)
+                            # bpy.context.collection.objects.link(light_object)
+                            # light_object.parent = obj.blender_obj
+
 
                 all_objs.extend(objs)
             elif "7e101ef3-7722-4af8-90d5-7c562834fabd" in obj_file:
