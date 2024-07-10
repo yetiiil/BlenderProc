@@ -163,23 +163,23 @@ def create_gaussian_mask(shape, centroid, sigma=20):
     y = np.arange(0, shape[0])
     x, y = np.meshgrid(x, y)
     mask = gaussian(x, y, centroid[1], centroid[0], sigma)
-    return mask
+    normalized_mask = (mask / mask.max()) * 255  # Normalize mask to 255
+    return normalized_mask
 
 def apply_colored_gaussian_to_image(colors, mask, color='red'):
-    normalized_mask = (mask / mask.max()) * 255  # Normalize mask to 255
     colored_mask = np.zeros_like(colors, dtype=np.float64)
     if color == 'red':
-        colored_mask[..., 0] = normalized_mask  # Red channel
-        colored_mask[..., 1] -= normalized_mask  
-        colored_mask[..., 2] -= normalized_mask 
+        colored_mask[..., 0] = mask  # Red channel
+        colored_mask[..., 1] -= mask  
+        colored_mask[..., 2] -= mask 
     elif color == 'green':
-        colored_mask[..., 1] = normalized_mask  # Green channel
-        colored_mask[..., 0] -= normalized_mask   # Reduce red channel a bit
-        colored_mask[..., 2] -= normalized_mask   # Reduce blue channel a bit
+        colored_mask[..., 1] = mask  # Green channel
+        colored_mask[..., 0] -= mask   # Reduce red channel a bit
+        colored_mask[..., 2] -= mask   # Reduce blue channel a bit
     elif color == 'blue':
-        colored_mask[..., 2] = normalized_mask  # Green channel
-        colored_mask[..., 1] -= normalized_mask   # Reduce red channel a bit
-        colored_mask[..., 0] -= normalized_mask   # Reduce blue channel a bit
+        colored_mask[..., 2] = mask  # Green channel
+        colored_mask[..., 1] -= mask   # Reduce red channel a bit
+        colored_mask[..., 0] -= mask   # Reduce blue channel a bit
     
     return np.clip(colors + colored_mask, 0, 255).astype(np.uint8)
 
@@ -225,9 +225,9 @@ def create_random_sphere_light():
 
     return light_object
 
-if lamp_light_strength > 0:
-    for _ in range(15):
-        create_random_sphere_light()
+# if lamp_light_strength > 0:
+#     for _ in range(15):
+#         create_random_sphere_light()
 
 # filter some objects from the loaded objects, which are later used in calculating an interesting score
 special_fur_objects = [
@@ -348,20 +348,25 @@ for key, _ in sorted_clusters:
                     prev_colors = Image.open(os.path.join(args.output_dir, f"{file_name}_{image_count - 1}.png"))
                     if centroid is not None:
                         gaussian_mask = create_gaussian_mask(colors.shape, centroid)
-                        red_colors = apply_colored_gaussian_to_image(prev_colors, gaussian_mask, color='red')
                         green_colors = apply_colored_gaussian_to_image(prev_colors, gaussian_mask, color='green')
-                        red_image = Image.fromarray(red_colors)
                         green_image = Image.fromarray(green_colors)
-                        red_image.save(os.path.join(args.output_dir, f"{file_name}_{image_count}_red.png"))
                         green_image.save(os.path.join(args.output_dir, f"{file_name}_{image_count}_green.png"))
+                        semantic_diff_img = Image.fromarray(semantic_diff.astype(np.uint8))
+                        semantic_diff_img.save(os.path.join(args.output_dir,f"{file_name}_{image_count}_mask.png",))
+                        gaussian_image = np.dstack([np.array(prev_colors), np.full(colors.shape[:2], 255, dtype=np.uint8)])
+                        gaussian_image[:, :, 3] = gaussian_mask
+                        gaussian_image = Image.fromarray(gaussian_image)
+                        gaussian_image.save(os.path.join(args.output_dir, f'{file_name}_{image_count}_gaussian.png')) 
+                        semantic_diff = np.expand_dims(semantic_diff.astype(np.uint8), axis=-1) * 255
+                        rgba_image = np.dstack((np.array(prev_colors), semantic_diff))
+                        result_image = Image.fromarray(rgba_image.astype('uint8'))
+                        result_image.save(os.path.join(args.output_dir, f'{file_name}_{image_count}_alpha.png')) 
                         # np.save(os.path.join(args.output_dir, f'{file_name}_mask_{image_count}.npy'), semantic_diff)
                         # plt.figure(figsize=(10, 6))
                         # plt.imshow(semantic_diff*255)
                         # print(np.unique(semantic_diff))
                         # plt.axis('off')  # Hide the axes
                         # plt.savefig(os.path.join(args.output_dir, f'{file_name}_mask_{image_count}.png'), bbox_inches='tight', pad_inches=0)
-                        semantic_diff_img = Image.fromarray(semantic_diff.astype(np.uint8))
-                        semantic_diff_img.save(os.path.join(args.output_dir,f"{file_name}_{image_count}_mask.png",))
                     image_count += 1
     except ReferenceError:
         pass

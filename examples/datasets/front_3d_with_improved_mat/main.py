@@ -34,6 +34,7 @@ bproc.init()
 
 if not os.path.exists(args.output_dir):
     os.makedirs(args.output_dir)
+    
 
 if not os.path.exists(args.front) or not os.path.exists(args.future_folder):
     raise Exception("One of the two folders does not exist!")
@@ -63,10 +64,8 @@ world.light_settings.ao_factor = 0.9
 haven_hdri_path = bproc.loader.get_random_world_background_hdr_img_path_from_haven("/scratch2/yuxili/BlenderProc/resources/haven")
 bproc.world.set_world_background_hdr_img(haven_hdri_path, strength = word_background_strength)
 
-
 # save it as blend file
-# bpy.ops.wm.save_as_mainfile(filepath=args.output_dir)
-# bpy.ops.export_scene.obj('EXEC_DEFAULT', filepath=os.path.join(args.output_dir, "scene.obj"), use_materials=True)
+# bpy.ops.export_scene.obj(filepath=os.path.join(args.output_dir, "scene.obj"))
 
 cc_materials = bproc.loader.load_ccmaterials(args.cc_material_path, ["Wallpaper","Bricks", "Wood", "Carpet", "Tile", "Marble"])
 wood_floor_materials = bproc.filter.by_cp(cc_materials, "asset_name", "WoodFloor.*", regex=True)
@@ -137,15 +136,15 @@ def create_random_sphere_light():
 
     return light_object
 
-if lamp_light_strength > 0:
-    for _ in range(15):
-        create_random_sphere_light()
+# if lamp_light_strength > 0:
+#     for _ in range(15):
+#         create_random_sphere_light()
 
 # filter some objects from the loaded objects, which are later used in calculating an interesting score
 special_objects = [obj.get_cp("category_id") for obj in loaded_objects if check_name(obj.get_name())]
 
 # proximity_checks = {"min": 3, "avg": {"min": 3, "max": 100000}, "max": 100000, "no_background":False}
-proximity_checks = {"min": 2, "max": 10000, "no_background":False}
+proximity_checks = {"min": 1.0, "avg": {"min": 2.5, "max": 3}, "max": 3.5, "no_background":False}
 cam2world_matrix_list = []
 while tries < 20000 and poses < 1:
     # Sample point inside house
@@ -158,7 +157,7 @@ while tries < 20000 and poses < 1:
 
     # Check that obstacles are at least 1 meter away from the camera and have an average distance between 2.5 and 3.5
     # meters and make sure that no background is visible, finally make sure the view is interesting enough
-    if bproc.camera.scene_coverage_score(cam2world_matrix, special_objects, special_objects_weight=10.0) > 0.6 \
+    if bproc.camera.scene_coverage_score(cam2world_matrix, special_objects, special_objects_weight=10.0) > 0.9 \
             and bproc.camera.perform_obstacle_in_view_check(cam2world_matrix, proximity_checks, bvh_tree):
         bproc.camera.add_camera_pose(cam2world_matrix)
         cam2world_matrix_list.append(cam2world_matrix)

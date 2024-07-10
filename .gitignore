@@ -7,6 +7,7 @@ blender
 .idea/
 .vscode/
 output/
+output_new/
 debug/
 resources/AMASS
 resources/cctextures*
@@ -24,6 +25,8 @@ blenderproc/external/vhacd
 .vscode
 *.pyc
 *.swp
+*.npy
+*.png
 docs/build/
 !docs/source/index.rst
 docs/source/*rst
