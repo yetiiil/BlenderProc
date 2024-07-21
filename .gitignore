@@ -8,6 +8,8 @@ blender
 .vscode/
 output/
 output_new/
+output_eval/
+output_proche/
 debug/
 resources/AMASS
 resources/cctextures*
@@ -27,6 +29,11 @@ blenderproc/external/vhacd
 *.swp
 *.npy
 *.png
+*.jpg
+*.npy
+*.hdf5
+*.obj
+*.mtl
 docs/build/
 !docs/source/index.rst
 docs/source/*rst

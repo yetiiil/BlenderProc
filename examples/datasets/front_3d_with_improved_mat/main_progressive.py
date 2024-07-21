@@ -250,7 +250,7 @@ with open(os.path.join(args.output_dir, "cam2world_matrix_list.pkl"), "rb") as f
     cam2world_matrix_list = pickle.load(fp)
 
 bproc.camera.add_camera_pose(cam2world_matrix_list[0])
-bproc.camera.set_intrinsics_from_blender_params(lens=np.pi / 2, lens_unit="FOV")
+bproc.camera.set_intrinsics_from_blender_params(lens=np.pi / 3, lens_unit="FOV")
 
 visible_object_list = bproc.camera.visible_objects(
     cam2world_matrix_list[0],

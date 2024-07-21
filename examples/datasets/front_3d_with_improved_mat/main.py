@@ -65,7 +65,7 @@ haven_hdri_path = bproc.loader.get_random_world_background_hdr_img_path_from_hav
 bproc.world.set_world_background_hdr_img(haven_hdri_path, strength = word_background_strength)
 
 # save it as blend file
-# bpy.ops.export_scene.obj(filepath=os.path.join(args.output_dir, "scene.obj"))
+bpy.ops.export_scene.obj(filepath=os.path.join(args.output_dir, "scene.obj"))
 
 cc_materials = bproc.loader.load_ccmaterials(args.cc_material_path, ["Wallpaper","Bricks", "Wood", "Carpet", "Tile", "Marble"])
 wood_floor_materials = bproc.filter.by_cp(cc_materials, "asset_name", "WoodFloor.*", regex=True)
@@ -144,9 +144,9 @@ def create_random_sphere_light():
 special_objects = [obj.get_cp("category_id") for obj in loaded_objects if check_name(obj.get_name())]
 
 # proximity_checks = {"min": 3, "avg": {"min": 3, "max": 100000}, "max": 100000, "no_background":False}
-proximity_checks = {"min": 1.0, "avg": {"min": 2.5, "max": 3}, "max": 3.5, "no_background":False}
+proximity_checks = {"min": 2, "max": 5, "no_background":False}
 cam2world_matrix_list = []
-while tries < 20000 and poses < 1:
+while tries < 10000 and poses < 1:
     # Sample point inside house
     height = np.random.uniform(1.4, 1.9)
     location = point_sampler.sample(height)
@@ -164,17 +164,74 @@ while tries < 20000 and poses < 1:
         poses += 1
     tries += 1
 
-bproc.camera.set_intrinsics_from_blender_params(lens=np.pi/2, lens_unit="FOV")
+bproc.camera.set_intrinsics_from_blender_params(lens=np.pi/3, lens_unit="FOV")
+
+# Optionally, save the intrinsic matrix to a file
+with open(os.path.join(args.output_dir, "cam.txt"), "w") as f:
+    for row in cam2world_matrix:
+        f.write(" ".join(map(str, row)) + "\n")
+
+
+
 with open(os.path.join(args.output_dir, "cam2world_matrix_list.pkl"), "wb") as fp:
     pickle.dump(cam2world_matrix_list, fp)
+
+# Get the active camera
+camera = bpy.context.scene.camera
+camera.data.sensor_height = camera.data.sensor_width
+
+import mathutils
+
+def get_camera_intrinsic_matrix(camera):
+    # Get the resolution and aspect ratio
+    scene = bpy.context.scene
+    render = scene.render
+    resolution_x = render.resolution_x
+    resolution_y = render.resolution_y
+    scale = render.resolution_percentage / 100
+    width = resolution_x * scale
+    height = resolution_y * scale
+    aspect_ratio = width / height
+    print(width, height, aspect_ratio)
+
+    # Get the focal length and sensor size
+    focal_length = camera.data.lens
+    sensor_width = camera.data.sensor_width
+    sensor_height = camera.data.sensor_height
+    print(focal_length, sensor_width, sensor_height)
+
+    # Calculate the pixel focal lengths
+    f_x = (focal_length / sensor_width) * width
+    f_y = (focal_length / sensor_height) * height * aspect_ratio
+    print(f_x, f_y)
+
+    # Get the principal point (center of the image)
+    c_x = width / 2
+    c_y = height / 2
+
+    # Build the intrinsic matrix
+    intrinsic_matrix = mathutils.Matrix(((f_x, 0, c_x), 
+                                         (0, f_y, c_y), 
+                                         (0, 0, 1)))
+    
+    return intrinsic_matrix
+
+# Get the intrinsic matrix
+intrinsic_matrix = get_camera_intrinsic_matrix(camera)
+
+# Optionally, save the intrinsic matrix to a file
+with open(os.path.join(args.output_dir, "camera_intrinsic_matrix.txt"), "w") as f:
+    for row in intrinsic_matrix:
+        f.write(" ".join(map(str, row)) + "\n")
+
     
 object_list = bproc.camera.visible_objects(cam2world_matrix, sqrt_number_of_rays = 10, special_objects = special_objects)
 count = Counter(object_list)
-print(count)
-    
 
 # Also render normals
-bproc.renderer.enable_normals_output()
+# bproc.renderer.enable_normals_output()
+bproc.renderer.enable_depth_output(activate_antialiasing=False)
+
 bproc.renderer.enable_segmentation_output(map_by=["category_id"])
 
 # render the whole pipeline
@@ -193,4 +250,9 @@ for file in files:
             colors_image.save(os.path.join(args.output_dir, f'{file_name}_0.png'))
             semantic = f['category_id_segmaps'][:]
             np.save(os.path.join(args.output_dir, f'{file_name}_0_semantic.npy'), semantic)
-    
+            depth = f['depth'][:]
+            depth[depth >= 10] = 10
+            # depth = depth / np.max(depth) * 255
+            # plt.imshow(depth, cmap='gray')
+            # plt.savefig(os.path.join(args.output_dir, f'{file_name}_0_depth.png'))
+            np.save(os.path.join(args.output_dir, f'{file_name}_0_depth.npy'), depth)

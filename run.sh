@@ -6,17 +6,17 @@ json_dir="/scratch2/yuxili/3D-FRONT"
 # Other directories
 model_dir="/scratch2/yuxili/3D-FUTURE-model"
 texture_dir="/scratch2/yuxili/3D-FRONT-texture"
-output_dir="/scratch2/yuxili/BlenderProc/output_new"
+output_dir="/scratch2/yuxili/BlenderProc/output_eval"
 resources_dir="resources/cctextures"
 
 # Define light strength sets
 # Set 1
-lamp_light_strength1=40
+lamp_light_strength1=35
 ceiling_light_strength1=2
 word_background_strength1=15
 
 # Set 2
-lamp_light_strength2=40
+lamp_light_strength2=35
 ceiling_light_strength2=2
 word_background_strength2=15
 
@@ -50,9 +50,22 @@ choose_set() {
     fi
 }
 
+start_processing=true
+
 # Loop through each JSON file in the directory
 for json_file in "$json_dir"/*.json; do
     base_name=$(get_base_name "$json_file")
+
+    # # Check if the base name starts with "28"
+    # if [ "$start_processing" = false ] && [[ $base_name == 0f39* ]]; then
+    #     start_processing=true
+    # fi
+    
+    # # Skip files until the first one starting with "28" is found
+    # if [ "$start_processing" = false ]; then
+    # echo "Pass $base_name Skipping."
+    #     continue
+    # fi
 
     # Check if there are PNG files in output_dir matching the base name
     if check_png_files_exist "$base_name"; then
