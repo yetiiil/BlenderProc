@@ -76,6 +76,48 @@ def load_front3d(json_path: str, future_model_path: str, front_3D_texture_path: 
 
     return created_objects
 
+def load_only_furniture(json_path: str, future_model_path: str, front_3D_texture_path: str, label_mapping: LabelIdMapping,
+                 ceiling_light_strength: float , lamp_light_strength: float ) -> List[MeshObject]:
+    """ Loads the 3D-Front scene specified by the given json file.
+
+    :param json_path: Path to the json file, where the house information is stored.
+    :param future_model_path: Path to the models used in the 3D-Front dataset.
+    :param front_3D_texture_path: Path to the 3D-FRONT-texture folder.
+    :param label_mapping: A dict which maps the names of the objects to ids.
+    :param ceiling_light_strength: Strength of the emission shader used in the ceiling.
+    :param lamp_light_strength: Strength of the emission shader used in each lamp.
+    :return: The list of loaded mesh objects.
+    """
+    json_path = resolve_path(json_path)
+    future_model_path = resolve_path(future_model_path)
+    front_3D_texture_path = resolve_path(front_3D_texture_path)
+
+    if not os.path.exists(json_path):
+        raise FileNotFoundError(f"The given path does not exists: {json_path}")
+    if not json_path.endswith(".json"):
+        raise FileNotFoundError(f"The given path does not point to a .json file: {json_path}")
+    if not os.path.exists(future_model_path):
+        raise FileNotFoundError(f"The 3D future model path does not exist: {future_model_path}")
+
+    # load data from json file
+    with open(json_path, "r", encoding="utf-8") as json_file:
+        data = json.load(json_file)
+
+    if "scene" not in data:
+        raise ValueError(f"There is no scene data in this json file: {json_path}")
+
+
+    all_loaded_furniture = _Front3DLoader.load_furniture_objs(data, future_model_path,
+                                                              lamp_light_strength, label_mapping)
+
+    created_objects = _Front3DLoader.move_and_duplicate_furniture(data, all_loaded_furniture)
+
+    # add an identifier to the obj
+    for obj in created_objects:
+        obj.set_cp("is_3d_front", True)
+
+    return created_objects
+
 def load_small_front3d(json_path: str, future_model_path: str, front_3D_texture_path: str, label_mapping: LabelIdMapping,
                  ceiling_light_strength: float , lamp_light_strength: float ) -> List[MeshObject]:
     """ Loads the 3D-Front scene specified by the given json file.

@@ -63,7 +63,7 @@ world.light_settings.ao_factor = 0.9
 # # Set a random hdri from the given haven directory as background
 haven_hdri_path = bproc.loader.get_random_world_background_hdr_img_path_from_haven("/scratch2/yuxili/BlenderProc/resources/haven")
 bproc.world.set_world_background_hdr_img(haven_hdri_path, strength = word_background_strength)
-
+            
 # save it as blend file
 bpy.ops.export_scene.obj(filepath=os.path.join(args.output_dir, "scene.obj"))
 
