@@ -138,6 +138,8 @@ def check_struc_name(name):
         "wall",
         "floor",
         "window",
+        "hole",
+        "slab",
         "ceiling",
         "door",
         "stair",

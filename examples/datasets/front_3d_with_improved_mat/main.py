@@ -229,9 +229,6 @@ object_list = bproc.camera.visible_objects(cam2world_matrix, sqrt_number_of_rays
 count = Counter(object_list)
 
 # Also render normals
-# bproc.renderer.enable_normals_output()
-bproc.renderer.enable_depth_output(activate_antialiasing=False)
-
 bproc.renderer.enable_segmentation_output(map_by=["category_id"])
 
 # render the whole pipeline
@@ -250,9 +247,3 @@ for file in files:
             colors_image.save(os.path.join(args.output_dir, f'{file_name}_0.png'))
             semantic = f['category_id_segmaps'][:]
             np.save(os.path.join(args.output_dir, f'{file_name}_0_semantic.npy'), semantic)
-            depth = f['depth'][:]
-            depth[depth >= 10] = 10
-            # depth = depth / np.max(depth) * 255
-            # plt.imshow(depth, cmap='gray')
-            # plt.savefig(os.path.join(args.output_dir, f'{file_name}_0_depth.png'))
-            np.save(os.path.join(args.output_dir, f'{file_name}_0_depth.npy'), depth)

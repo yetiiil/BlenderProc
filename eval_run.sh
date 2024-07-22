@@ -6,7 +6,7 @@ json_dir="/scratch2/yuxili/3D-FRONT"
 # Other directories
 model_dir="/scratch2/yuxili/3D-FUTURE-model"
 texture_dir="/scratch2/yuxili/3D-FRONT-texture"
-output_dir="/scratch2/yuxili/BlenderProc/output_eval_test"
+output_dir="/scratch2/yuxili/BlenderProc/output_eval"
 resources_dir="resources/cctextures"
 
 # Define light strength sets
@@ -82,7 +82,7 @@ for json_file in "$json_dir"/*.json; do
     random_seed=$RANDOM
 
     # Run BlenderProc with the chosen parameters
-    blenderproc run examples/datasets/front_3d_with_improved_mat/main.py "$json_file" $model_dir $texture_dir $resources_dir $output_dir --lamp_light_strength $lamp_light_strength --ceiling_light_strength $ceiling_light_strength --word_background_strength $word_background_strength --random_seed $random_seed
-    blenderproc run examples/datasets/front_3d_with_improved_mat/main_get_furniture_in_view.py "$json_file" $model_dir $texture_dir $resources_dir $output_dir --lamp_light_strength $lamp_light_strength --ceiling_light_strength $ceiling_light_strength --word_background_strength $word_background_strength --random_seed $random_seed
-    blenderproc run examples/datasets/front_3d_with_improved_mat/main_empty.py "$json_file" $model_dir $texture_dir $resources_dir $output_dir --lamp_light_strength $lamp_light_strength --ceiling_light_strength $ceiling_light_strength --word_background_strength $word_background_strength --random_seed $random_seed
+    blenderproc run examples/datasets/front_3d_with_improved_mat/main_eval.py "$json_file" $model_dir $texture_dir $resources_dir "${output_dir}/${base_name}/" --lamp_light_strength $lamp_light_strength --ceiling_light_strength $ceiling_light_strength --word_background_strength $word_background_strength --random_seed $random_seed
+    blenderproc run examples/datasets/front_3d_with_improved_mat/main_get_furniture_in_view.py "$json_file" $model_dir $texture_dir $resources_dir "${output_dir}/${base_name}/" --lamp_light_strength $lamp_light_strength --ceiling_light_strength $ceiling_light_strength --word_background_strength $word_background_strength --random_seed $random_seed
+    blenderproc run examples/datasets/front_3d_with_improved_mat/main_empty.py "$json_file" $model_dir $texture_dir $resources_dir "${output_dir}/${base_name}/" --lamp_light_strength $lamp_light_strength --ceiling_light_strength $ceiling_light_strength --word_background_strength $word_background_strength --random_seed $random_seed
 done

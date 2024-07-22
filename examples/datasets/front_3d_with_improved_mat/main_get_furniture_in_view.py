@@ -133,6 +133,8 @@ def check_struc_name(name):
         "baseboard",
         "wall",
         "floor",
+        "slab",
+        "hole",
         "window",
         "ceiling",
         "door",
@@ -242,14 +244,14 @@ special_struc_objects = [
     obj for obj in loaded_objects if check_struc_name(obj.get_name())
 ]
 
-with open(os.path.join(args.output_dir, "cam2world_matrix_list.pkl"), "rb") as fp:
-    cam2world_matrix_list = pickle.load(fp)
 
-bproc.camera.add_camera_pose(cam2world_matrix_list[0])
-bproc.camera.set_intrinsics_from_blender_params(lens=np.pi / 3, lens_unit="FOV")
+cam2world_matrix = np.loadtxt(os.path.join(args.output_dir, "cam2world_matrix.txt"))
+
+bproc.camera.add_camera_pose(cam2world_matrix)
+bproc.camera.set_intrinsics_from_blender_params(lens=np.pi / 2, lens_unit="FOV")
 
 visible_object_list = bproc.camera.visible_objects(
-    cam2world_matrix_list[0],
+    cam2world_matrix,
     sqrt_number_of_rays=20,
     special_objects=special_struc_objects_id,
 )
@@ -261,5 +263,7 @@ for obj in bpy.data.objects:
         obj.select_set(True)
         # Delete the object
         bpy.ops.object.delete()
+    else:
+        print(obj.name.lower())
 
-bpy.ops.export_scene.obj('EXEC_DEFAULT', filepath=os.path.join(args.output_dir, "scene_test.obj"), use_materials=True)
+bpy.ops.export_scene.obj('EXEC_DEFAULT', filepath=os.path.join(args.output_dir, "furnitures.obj"), use_materials=True)
