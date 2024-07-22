@@ -34,6 +34,10 @@ blenderproc/external/vhacd
 *.hdf5
 *.obj
 *.mtl
+*.pkl
+*.txt
+*.ply
+*.gif
 docs/build/
 !docs/source/index.rst
 docs/source/*rst
